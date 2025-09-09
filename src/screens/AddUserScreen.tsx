@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+// src/screens/AddUserScreen.tsx
+import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -12,6 +13,10 @@ import {
 import { useForm, Controller } from 'react-hook-form'
 import { useUsersStore } from '../store/useUsers'
 import type { UserRecord } from '../db/sqlite'
+import type { NativeStackScreenProps } from '@react-navigation/native-stack'
+import type { RootStackParamList } from '../../App'
+
+type Props = NativeStackScreenProps<RootStackParamList, 'AddUser'>
 
 type FormValues = {
   name: string
@@ -20,33 +25,60 @@ type FormValues = {
 
 const nameRegex = /^[A-Za-z ]+$/
 
-export default function AddUserScreen({
-  navigation,
-}: {
-  navigation?: { goBack: () => void }
-}) {
+export default function AddUserScreen({ route, navigation }: Props) {
   const addUser = useUsersStore((s) => s.addUser)
+  const updateUser = useUsersStore((s) => s.updateUser)
   const {
     control,
     handleSubmit,
     reset,
     formState: { errors },
   } = useForm<FormValues>({ defaultValues: { name: '', email: '' } })
+
   const [userType, setUserType] = useState<UserRecord['userType']>('Manager')
-  const onSubmit = async (vals: FormValues) => {
-    const id = Date.now().toString()
-    const user: UserRecord = {
-      id,
-      name: vals.name.trim(),
-      email: vals.email?.trim() || null,
-      userType,
+  const editingUser = route.params?.user
+
+  useEffect(() => {
+    if (editingUser) {
+      reset({ name: editingUser.name ?? '', email: editingUser.email ?? '' })
+      setUserType(editingUser.userType ?? 'Manager')
+    } else {
+      reset({ name: '', email: '' })
+      setUserType('Manager')
     }
-    try {
-      await addUser(user)
-      Alert.alert('Saved', 'User added locally', [{ text: 'OK', onPress: () => navigation?.goBack?.() }])
-      reset()
-    } catch (e) {
-      Alert.alert('Error', 'Failed to save user')
+  }, [editingUser, reset])
+
+  const onSubmit = async (vals: FormValues) => {
+    const trimmedName = vals.name.trim()
+    const trimmedEmail = vals.email?.trim() || null
+    if (editingUser) {
+      const user: UserRecord = {
+        id: editingUser.id,
+        name: trimmedName,
+        email: trimmedEmail,
+        userType,
+      }
+      try {
+        await updateUser(user)
+        Alert.alert('Saved', 'User updated', [{ text: 'OK', onPress: () => navigation.goBack() }])
+      } catch {
+        Alert.alert('Error', 'Failed to update user')
+      }
+    } else {
+      const id = Date.now().toString()
+      const user: UserRecord = {
+        id,
+        name: trimmedName,
+        email: trimmedEmail,
+        userType,
+      }
+      try {
+        await addUser(user)
+        Alert.alert('Saved', 'User added locally', [{ text: 'OK', onPress: () => navigation.goBack() }])
+        reset()
+      } catch {
+        Alert.alert('Error', 'Failed to save user')
+      }
     }
   }
 
@@ -113,7 +145,7 @@ export default function AddUserScreen({
         </View>
 
         <TouchableOpacity onPress={handleSubmit(onSubmit)} style={styles.saveBtn}>
-          <Text style={styles.saveText}>Save</Text>
+          <Text style={styles.saveText}>{editingUser ? 'Update' : 'Save'}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

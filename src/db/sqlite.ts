@@ -39,6 +39,12 @@ export async function closeDB() {
   }
 }
 
+function normType(t?: string | null) {
+  if (!t) return 'Other';
+  const v = t.trim().toLowerCase();
+  return v === 'admin' ? 'Admin' : v === 'manager' ? 'Manager' : 'Other';
+}
+
 export async function getAllUsers(): Promise<UserRecord[]> {
   const db = await openDB();
   const [res] = await db.executeSql(`SELECT * FROM users ORDER BY name COLLATE NOCASE ASC;`);
@@ -50,7 +56,7 @@ export async function getAllUsers(): Promise<UserRecord[]> {
 export async function getUsersByType(type: UserType): Promise<UserRecord[]> {
   const db = await openDB();
   const [res] = await db.executeSql(
-    `SELECT * FROM users WHERE userType = ? ORDER BY name COLLATE NOCASE ASC;`,
+    `SELECT * FROM users WHERE LOWER(TRIM(userType)) = LOWER(TRIM(?)) ORDER BY name COLLATE NOCASE ASC;`,
     [type]
   );
   const out: UserRecord[] = [];
@@ -74,7 +80,7 @@ export async function insertUser(user: UserRecord): Promise<void> {
   const now = new Date().toISOString();
   await db.executeSql(
     `INSERT INTO users (id, name, email, userType, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?);`,
-    [user.id, user.name, user.email || null, user.userType || null, now, now]
+    [user.id, user.name, user.email || null, normType(user.userType), now, now]
   );
 }
 
@@ -83,7 +89,7 @@ export async function updateUser(user: UserRecord): Promise<void> {
   const now = new Date().toISOString();
   await db.executeSql(
     `UPDATE users SET name = ?, email = ?, userType = ?, updatedAt = ? WHERE id = ?;`,
-    [user.name, user.email || null, user.userType || null, now, user.id]
+    [user.name, user.email || null, normType(user.userType), now, user.id]
   );
 }
 
@@ -100,7 +106,7 @@ export async function bulkUpsertUsers(users: UserRecord[]): Promise<void> {
       await tx.executeSql(
         `INSERT OR REPLACE INTO users (id, name, email, userType, createdAt, updatedAt)
          VALUES (?, ?, ?, ?, ?, ?);`,
-        [u.id, u.name, u.email || null, u.userType || null, u.createdAt || now, u.updatedAt || now]
+        [u.id, u.name, u.email || null, normType(u.userType), u.createdAt || now, u.updatedAt || now]
       );
     }
   });
