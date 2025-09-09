@@ -39,7 +39,7 @@ export async function closeDB() {
   }
 }
 
-function normType(t?: string | null) {
+export function normType(t?: string | null) {
   if (!t) return 'Other';
   const v = t.trim().toLowerCase();
   return v === 'admin' ? 'Admin' : v === 'manager' ? 'Manager' : 'Other';

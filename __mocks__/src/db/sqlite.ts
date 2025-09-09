@@ -1,0 +1,11 @@
+// __mocks__/src/db/sqlite.ts
+export const getAllUsers = jest.fn()
+export const insertUser = jest.fn()
+export const updateUser = jest.fn()
+export const deleteUser = jest.fn()
+export const bulkUpsertUsers = jest.fn()
+export const openDB = jest.fn()
+export const closeDB = jest.fn()
+export const getUsersByType = jest.fn()
+export const searchUsersByName = jest.fn()
+export const normType = jest.fn((t) => t)

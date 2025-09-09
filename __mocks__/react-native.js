@@ -1,0 +1,1 @@
+module.exports = { View:'View',Text:'Text',FlatList:'FlatList',SafeAreaView:'SafeAreaView',TouchableOpacity:'TouchableOpacity',Platform:{OS:'ios'},StyleSheet:{create:s=>s} }
