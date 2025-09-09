@@ -1,50 +1,51 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { ActivityIndicator } from 'react-native'
 import { ApolloProvider } from '@apollo/client/react'
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
-import { apolloClient } from './src/api/apollo'
-import { useUsersStore } from './src/store/useUsers'
-import { syncCustomersFromApi } from './src/api/queries'
-import ListScreen from './src/screens/ListScreen'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { apolloClient } from './src/api/apollo'
+import ListScreen from './src/screens/ListScreen'
 import AddUserScreen from './src/screens/AddUserScreen'
+import { useUsersStore } from './src/store/useUsers'
+import { syncCustomersFromApi } from './src/api/queries'
 
-const Stack = createNativeStackNavigator()
-
-function RootNav() {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen name="Users" component={ListScreen} />
-      <Stack.Screen name="AddUser" component={AddUserScreen} />
-    </Stack.Navigator>
-  )
+export type RootStackParamList = {
+  Users: undefined
+  AddUser: { user?: { id: string; name: string; email?: string | null; userType?: 'Admin'|'Manager'|'Other' } } | undefined
 }
 
+const Stack = createNativeStackNavigator<RootStackParamList>()
+
 function Root() {
-  const { loadFromDB, users, loading } = useUsersStore()
+  const loadFromDB = useUsersStore((s) => s.loadFromDB)
+  const users = useUsersStore((s) => s.users)
+  const [initializing, setInitializing] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     const init = async () => {
       await loadFromDB()
       try {
         await syncCustomersFromApi()
-      } catch {
-        console.warn('API sync failed, using local DB only')
+      } catch (e) {
+        console.warn('sync failed', e)
       }
+      if (cancelled) return
+      await loadFromDB()
+      setInitializing(false)
     }
-    init()
+    void init()
+    return () => {
+      cancelled = true
+    }
   }, [loadFromDB])
 
-  if (loading && users.length === 0) {
+  if (initializing && users.length === 0) {
     return <ActivityIndicator size="large" style={{ flex: 1 }} />
   }
 
-  return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ListScreen />
-    </SafeAreaView>
-  )
+  return null
 }
 
 export default function App() {
@@ -52,7 +53,11 @@ export default function App() {
     <ApolloProvider client={apolloClient}>
       <SafeAreaProvider>
         <NavigationContainer>
-          <RootNav />
+          <Stack.Navigator initialRouteName="Users">
+            <Stack.Screen name="Users" component={ListScreen} />
+            <Stack.Screen name="AddUser" component={AddUserScreen} />
+          </Stack.Navigator>
+          <Root />
         </NavigationContainer>
       </SafeAreaProvider>
     </ApolloProvider>
